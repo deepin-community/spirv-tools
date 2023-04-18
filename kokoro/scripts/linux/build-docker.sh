@@ -30,14 +30,6 @@ fi
 
 cd $ROOT_DIR
 
-function clone_if_missing() {
-  url=$1
-  dir=$2
-  if [[ ! -d "$dir" ]]; then
-    git clone ${@:3} "$url" "$dir"
-  fi
-}
-
 function clean_dir() {
   dir=$1
   if [[ -d "$dir" ]]; then
@@ -46,19 +38,15 @@ function clean_dir() {
   mkdir "$dir"
 }
 
-clone_if_missing https://github.com/KhronosGroup/SPIRV-Headers external/spirv-headers --depth=1
-clone_if_missing https://github.com/google/googletest          external/googletest
-pushd external/googletest; git reset --hard 1fb1bb23bb8418dc73a5a9a82bbed31dc610fec7; popd
-clone_if_missing https://github.com/google/effcee              external/effcee        --depth=1
-clone_if_missing https://github.com/google/re2                 external/re2           --depth=1
-clone_if_missing https://github.com/protocolbuffers/protobuf   external/protobuf      --branch v3.13.0.1
+# Get source for dependencies, as specified in the DEPS file
+/usr/bin/python3 utils/git-sync-deps --treeless
 
 if [ $TOOL = "cmake" ]; then
   using cmake-3.17.2
   using ninja-1.10.0
 
   # Possible configurations are:
-  # ASAN, COVERAGE, RELEASE, DEBUG, DEBUG_EXCEPTION, RELEASE_MINGW
+  # ASAN, UBSAN, COVERAGE, RELEASE, DEBUG, DEBUG_EXCEPTION, RELEASE_MINGW
   BUILD_TYPE="Debug"
   if [ $CONFIG = "RELEASE" ] || [ $CONFIG = "RELEASE_MINGW" ]; then
     BUILD_TYPE="RelWithDebInfo"
@@ -68,6 +56,13 @@ if [ $TOOL = "cmake" ]; then
   ADDITIONAL_CMAKE_FLAGS=""
   if [ $CONFIG = "ASAN" ]; then
     ADDITIONAL_CMAKE_FLAGS="-DSPIRV_USE_SANITIZER=address,bounds,null"
+    [ $COMPILER = "clang" ] || { echo "$CONFIG requires clang"; exit 1; }
+  elif [ $CONFIG = "UBSAN" ]; then
+    # UBSan requires RTTI, and by default UBSan does not exit when errors are
+    # encountered - additional compiler options are required to force this.
+    # The -DSPIRV_USE_SANITIZER=undefined option instructs SPIR-V Tools to be
+    # built with UBSan enabled.
+    ADDITIONAL_CMAKE_FLAGS="-DSPIRV_USE_SANITIZER=undefined -DENABLE_RTTI=ON -DCMAKE_C_FLAGS=-fno-sanitize-recover=all -DCMAKE_CXX_FLAGS=-fno-sanitize-recover=all"
     [ $COMPILER = "clang" ] || { echo "$CONFIG requires clang"; exit 1; }
   elif [ $CONFIG = "COVERAGE" ]; then
     ADDITIONAL_CMAKE_FLAGS="-DENABLE_CODE_COVERAGE=ON"
@@ -188,7 +183,7 @@ elif [ $TOOL = "android-ndk-build" ]; then
 
   echo $(date): ndk-build completed.
 elif [ $TOOL = "bazel" ]; then
-  using bazel-3.1.0
+  using bazel-5.0.0
 
   echo $(date): Build everything...
   bazel build :all
