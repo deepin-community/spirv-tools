@@ -1,1 +1,3 @@
 disable-shared-harder.diff
+fix-gcc12-build.patch
+disable-WError.patch
