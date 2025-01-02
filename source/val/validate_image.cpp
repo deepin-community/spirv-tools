@@ -914,7 +914,15 @@ spv_result_t ValidateTypeImage(ValidationState_t& _, const Instruction* inst) {
 
     if (info.dim == spv::Dim::SubpassData && info.arrayed != 0) {
       return _.diag(SPV_ERROR_INVALID_DATA, inst)
-             << _.VkErrorID(6214) << "Dim SubpassData requires Arrayed to be 0";
+             << _.VkErrorID(6214)
+             << "Dim SubpassData requires Arrayed to be 0 in the Vulkan "
+                "environment";
+    }
+
+    if (info.dim == spv::Dim::Rect) {
+      return _.diag(SPV_ERROR_INVALID_DATA, inst)
+             << _.VkErrorID(9638)
+             << "Dim must not be Rect in the Vulkan environment";
     }
   }
 
@@ -997,7 +1005,8 @@ bool IsAllowedSampledImageOperand(spv::Op opcode, ValidationState_t& _) {
 
 spv_result_t ValidateSampledImage(ValidationState_t& _,
                                   const Instruction* inst) {
-  if (_.GetIdOpcode(inst->type_id()) != spv::Op::OpTypeSampledImage) {
+  auto type_inst = _.FindDef(inst->type_id());
+  if (type_inst->opcode() != spv::Op::OpTypeSampledImage) {
     return _.diag(SPV_ERROR_INVALID_DATA, inst)
            << "Expected Result Type to be OpTypeSampledImage.";
   }
@@ -1014,8 +1023,25 @@ spv_result_t ValidateSampledImage(ValidationState_t& _,
            << "Corrupt image type definition";
   }
 
-  // TODO(atgoo@github.com) Check compatibility of result type and received
-  // image.
+  // Image operands must match except for depth.
+  auto sampled_image_id = type_inst->GetOperandAs<uint32_t>(1);
+  if (sampled_image_id != image_type) {
+    ImageTypeInfo sampled_info;
+    if (!GetImageTypeInfo(_, sampled_image_id, &sampled_info)) {
+      return _.diag(SPV_ERROR_INVALID_DATA, inst)
+             << "Corrupt image type definition";
+    }
+    if (info.sampled_type != sampled_info.sampled_type ||
+        info.dim != sampled_info.dim || info.arrayed != sampled_info.arrayed ||
+        info.multisampled != sampled_info.multisampled ||
+        info.sampled != sampled_info.sampled ||
+        info.format != sampled_info.format ||
+        info.access_qualifier != sampled_info.access_qualifier) {
+      return _.diag(SPV_ERROR_INVALID_DATA, inst)
+             << "Image operands must match result image operands except for "
+                "depth";
+    }
+  }
 
   if (spvIsVulkanEnv(_.context()->target_env)) {
     if (info.sampled != 1) {
@@ -1107,7 +1133,8 @@ spv_result_t ValidateSampledImage(ValidationState_t& _,
 spv_result_t ValidateImageTexelPointer(ValidationState_t& _,
                                        const Instruction* inst) {
   const auto result_type = _.FindDef(inst->type_id());
-  if (result_type->opcode() != spv::Op::OpTypePointer) {
+  if (result_type->opcode() != spv::Op::OpTypePointer &&
+      result_type->opcode() == spv::Op::OpTypeUntypedPointerKHR) {
     return _.diag(SPV_ERROR_INVALID_DATA, inst)
            << "Expected Result Type to be OpTypePointer";
   }
@@ -1119,16 +1146,20 @@ spv_result_t ValidateImageTexelPointer(ValidationState_t& _,
               "operand is Image";
   }
 
-  const auto ptr_type = result_type->GetOperandAs<uint32_t>(2);
-  const auto ptr_opcode = _.GetIdOpcode(ptr_type);
-  if (ptr_opcode != spv::Op::OpTypeInt && ptr_opcode != spv::Op::OpTypeFloat &&
-      ptr_opcode != spv::Op::OpTypeVoid &&
-      !(ptr_opcode == spv::Op::OpTypeVector &&
-        _.HasCapability(spv::Capability::AtomicFloat16VectorNV) &&
-        _.IsFloat16Vector2Or4Type(ptr_type))) {
-    return _.diag(SPV_ERROR_INVALID_DATA, inst)
-           << "Expected Result Type to be OpTypePointer whose Type operand "
-              "must be a scalar numerical type or OpTypeVoid";
+  uint32_t ptr_type = 0;
+  if (result_type->opcode() == spv::Op::OpTypePointer) {
+    ptr_type = result_type->GetOperandAs<uint32_t>(2);
+    const auto ptr_opcode = _.GetIdOpcode(ptr_type);
+    if (ptr_opcode != spv::Op::OpTypeInt &&
+        ptr_opcode != spv::Op::OpTypeFloat &&
+        ptr_opcode != spv::Op::OpTypeVoid &&
+        !(ptr_opcode == spv::Op::OpTypeVector &&
+          _.HasCapability(spv::Capability::AtomicFloat16VectorNV) &&
+          _.IsFloat16Vector2Or4Type(ptr_type))) {
+      return _.diag(SPV_ERROR_INVALID_DATA, inst)
+             << "Expected Result Type to be OpTypePointer whose Type operand "
+                "must be a scalar numerical type or OpTypeVoid";
+    }
   }
 
   const auto image_ptr = _.FindDef(_.GetOperandTypeId(inst, 2));
@@ -1149,7 +1180,8 @@ spv_result_t ValidateImageTexelPointer(ValidationState_t& _,
            << "Corrupt image type definition";
   }
 
-  if (info.sampled_type != ptr_type &&
+  if (result_type->opcode() == spv::Op::OpTypePointer &&
+      info.sampled_type != ptr_type &&
       !(_.HasCapability(spv::Capability::AtomicFloat16VectorNV) &&
         _.IsFloat16Vector2Or4Type(ptr_type) &&
         _.GetIdOpcode(info.sampled_type) == spv::Op::OpTypeFloat &&
@@ -2161,7 +2193,8 @@ spv_result_t ValidateImageProcessingQCOMDecoration(ValidationState_t& _, int id,
                                                    spv::Decoration decor) {
   const Instruction* si_inst = nullptr;
   const Instruction* ld_inst = _.FindDef(id);
-  if (ld_inst->opcode() == spv::Op::OpSampledImage) {
+  bool is_intf_obj = (ld_inst->opcode() == spv::Op::OpSampledImage);
+  if (is_intf_obj == true) {
     si_inst = ld_inst;
     int t_idx = si_inst->GetOperandAs<int>(2);  // texture
     ld_inst = _.FindDef(t_idx);
@@ -2173,6 +2206,56 @@ spv_result_t ValidateImageProcessingQCOMDecoration(ValidationState_t& _, int id,
   if (!_.HasDecoration(texture_id, decor)) {
     return _.diag(SPV_ERROR_INVALID_DATA, ld_inst)
            << "Missing decoration " << _.SpvDecorationString(decor);
+  }
+
+  return SPV_SUCCESS;
+}
+
+spv_result_t ValidateImageProcessing2QCOMWindowDecoration(ValidationState_t& _,
+                                                          int id) {
+  const Instruction* ld_inst = _.FindDef(id);
+  bool is_intf_obj = (ld_inst->opcode() != spv::Op::OpSampledImage);
+  if (is_intf_obj == true) {
+    if (ld_inst->opcode() != spv::Op::OpLoad) {
+      return _.diag(SPV_ERROR_INVALID_DATA, ld_inst) << "Expect to see OpLoad";
+    }
+    int texture_id = ld_inst->GetOperandAs<int>(2);  // variable to load
+    spv::Decoration decor = spv::Decoration::BlockMatchTextureQCOM;
+    if (!_.HasDecoration(texture_id, decor)) {
+      return _.diag(SPV_ERROR_INVALID_DATA, ld_inst)
+             << "Missing decoration " << _.SpvDecorationString(decor);
+    }
+    decor = spv::Decoration::BlockMatchSamplerQCOM;
+    if (!_.HasDecoration(texture_id, decor)) {
+      return _.diag(SPV_ERROR_INVALID_DATA, ld_inst)
+             << "Missing decoration " << _.SpvDecorationString(decor);
+    }
+  } else {
+    const Instruction* si_inst = ld_inst;
+    int t_idx = si_inst->GetOperandAs<int>(2);  // texture
+    const Instruction* t_ld_inst = _.FindDef(t_idx);
+    if (t_ld_inst->opcode() != spv::Op::OpLoad) {
+      return _.diag(SPV_ERROR_INVALID_DATA, t_ld_inst)
+             << "Expect to see OpLoad";
+    }
+    int texture_id = t_ld_inst->GetOperandAs<int>(2);  // variable to load
+    spv::Decoration decor = spv::Decoration::BlockMatchTextureQCOM;
+    if (!_.HasDecoration(texture_id, decor)) {
+      return _.diag(SPV_ERROR_INVALID_DATA, ld_inst)
+             << "Missing decoration " << _.SpvDecorationString(decor);
+    }
+    int s_idx = si_inst->GetOperandAs<int>(3);  // sampler
+    const Instruction* s_ld_inst = _.FindDef(s_idx);
+    if (s_ld_inst->opcode() != spv::Op::OpLoad) {
+      return _.diag(SPV_ERROR_INVALID_DATA, s_ld_inst)
+             << "Expect to see OpLoad";
+    }
+    int sampler_id = s_ld_inst->GetOperandAs<int>(2);  // variable to load
+    decor = spv::Decoration::BlockMatchSamplerQCOM;
+    if (!_.HasDecoration(sampler_id, decor)) {
+      return _.diag(SPV_ERROR_INVALID_DATA, ld_inst)
+             << "Missing decoration " << _.SpvDecorationString(decor);
+    }
   }
 
   return SPV_SUCCESS;
@@ -2203,18 +2286,10 @@ spv_result_t ValidateImageProcessingQCOM(ValidationState_t& _,
     case spv::Op::OpImageBlockMatchWindowSSDQCOM:
     case spv::Op::OpImageBlockMatchWindowSADQCOM: {
       int tgt_idx = inst->GetOperandAs<int>(2);  // target
-      res = ValidateImageProcessingQCOMDecoration(
-          _, tgt_idx, spv::Decoration::BlockMatchTextureQCOM);
-      if (res != SPV_SUCCESS) break;
-      res = ValidateImageProcessingQCOMDecoration(
-          _, tgt_idx, spv::Decoration::BlockMatchSamplerQCOM);
+      res = ValidateImageProcessing2QCOMWindowDecoration(_, tgt_idx);
       if (res != SPV_SUCCESS) break;
       int ref_idx = inst->GetOperandAs<int>(4);  // reference
-      res = ValidateImageProcessingQCOMDecoration(
-          _, ref_idx, spv::Decoration::BlockMatchTextureQCOM);
-      if (res != SPV_SUCCESS) break;
-      res = ValidateImageProcessingQCOMDecoration(
-          _, ref_idx, spv::Decoration::BlockMatchSamplerQCOM);
+      res = ValidateImageProcessing2QCOMWindowDecoration(_, ref_idx);
       break;
     }
     case spv::Op::OpImageBlockMatchGatherSSDQCOM:
