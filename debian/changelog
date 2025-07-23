@@ -1,8 +1,45 @@
-spirv-tools (2024.1-1deepin0) unstable; urgency=medium
+spirv-tools (2025.1~rc1-1deepin1) unstable; urgency=medium
 
-  * No source change upload against GCC 12.
+  * fix gcc-12 bounds checking bug
 
- -- Tianyu Chen <sweetyfish@deepin.org>  Fri, 20 Sep 2024 12:19:15 +0800
+ -- Chang Yang <yangchang@deepin.org>  Wed, 23 Jul 2025 10:15:24 +0800
+
+spirv-tools (2025.1~rc1-1) unstable; urgency=medium
+
+  * New upstream release (vulkan-sdk-1.4.309.0).
+  * watch: Updated.
+  * control: Bump build-dep on spirv-headers.
+
+ -- Timo Aaltonen <tjaalton@debian.org>  Tue, 18 Mar 2025 16:15:19 +0200
+
+spirv-tools (2024.4~rc2-1) unstable; urgency=medium
+
+  * New upstream release.
+  * control: Bump build-dep on spirv-headers.
+
+ -- Timo Aaltonen <tjaalton@debian.org>  Thu, 16 Jan 2025 15:46:53 +0200
+
+spirv-tools (2024.4~rc1-1) unstable; urgency=medium
+
+  * New upstream release.
+  * control: Bump build-dep on spirv-headers.
+
+ -- Timo Aaltonen <tjaalton@debian.org>  Wed, 16 Oct 2024 13:25:55 +0300
+
+spirv-tools (2024.3-1) unstable; urgency=medium
+
+  * New upstream release.
+  * control: Bump build-dep on spirv-headers.
+
+ -- Timo Aaltonen <tjaalton@debian.org>  Thu, 29 Aug 2024 11:18:47 +0300
+
+spirv-tools (2024.2~rc1-1) unstable; urgency=medium
+
+  * New upstream release.
+  * patches: Refreshed.
+  * control: Bump build-dep on spirv-headers.
+
+ -- Timo Aaltonen <tjaalton@debian.org>  Thu, 30 May 2024 11:01:53 +0300
 
 spirv-tools (2024.1-1) unstable; urgency=medium
 
