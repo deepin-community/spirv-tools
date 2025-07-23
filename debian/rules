@@ -1,6 +1,8 @@
 #!/usr/bin/make -f
 
 export DEB_BUILD_MAINT_OPTIONS=optimize=-lto
+# https://gcc.gnu.org/bugzilla/show_bug.cgi?id=115824
+export CXXFLAGS=$(shell dpkg-buildflags --get CXXFLAGS) -Wno-array-bounds -Wno-stringop-overread
 
 %:
 	dh $@ 
