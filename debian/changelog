@@ -1,8 +1,53 @@
-spirv-tools (2024.4~rc1-1deepin1) unstable; urgency=medium
+spirv-tools (2026.1-1) unstable; urgency=medium
 
-  * Disable werror.
+  * New upstream version.
+  * control: Bump build-dep on spirv-headers.
 
- -- xiangzelong <xiangzelong@deepin.org>  Thu, 02 Jan 2025 16:58:31 +0800
+ -- Timo Aaltonen <tjaalton@debian.org>  Fri, 06 Feb 2026 11:16:33 +0200
+
+spirv-tools (2025.5-1) unstable; urgency=medium
+
+  * New upstream release.
+  * control: Bump build-dep on spirv-headers.
+  * control: Fix Breaks/Replaces for the packaging split to allow
+    backports.
+
+ -- Timo Aaltonen <tjaalton@debian.org>  Thu, 18 Dec 2025 11:43:29 +0200
+
+spirv-tools (2025.4-1) unstable; urgency=medium
+
+  [ Timo Aaltonen ]
+  * New upstream release. (Closes: #1114395)
+  * control: Bump build-dep on spirv-headers.
+
+  [ Dylan Aïssi ]
+  * Make spirv-tools multi-arch compatible (Closes: #1023780)
+    Move some files from spirv-tools to spirv-tools-dev and spirv-tools-headers.
+
+ -- Timo Aaltonen <tjaalton@debian.org>  Tue, 28 Oct 2025 13:35:38 +0200
+
+spirv-tools (2025.3~rc1-1) unstable; urgency=medium
+
+  * New upstream release.
+  * control: Bump build-dep on spirv-headers.
+  * patches: Refreshed.
+
+ -- Timo Aaltonen <tjaalton@debian.org>  Mon, 11 Aug 2025 06:58:28 +0300
+
+spirv-tools (2025.1~rc1-1) unstable; urgency=medium
+
+  * New upstream release (vulkan-sdk-1.4.309.0).
+  * watch: Updated.
+  * control: Bump build-dep on spirv-headers.
+
+ -- Timo Aaltonen <tjaalton@debian.org>  Tue, 18 Mar 2025 16:15:19 +0200
+
+spirv-tools (2024.4~rc2-1) unstable; urgency=medium
+
+  * New upstream release.
+  * control: Bump build-dep on spirv-headers.
+
+ -- Timo Aaltonen <tjaalton@debian.org>  Thu, 16 Jan 2025 15:46:53 +0200
 
 spirv-tools (2024.4~rc1-1) unstable; urgency=medium
 

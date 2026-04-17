@@ -1,6 +1,6 @@
 --- a/CMakeLists.txt
 +++ b/CMakeLists.txt
-@@ -383,7 +383,10 @@ if (NOT "${SPIRV_SKIP_TESTS}")
+@@ -372,7 +372,10 @@ if (NOT "${SPIRV_SKIP_TESTS}")
  endif()
  
  set(SPIRV_LIBRARIES "-lSPIRV-Tools-opt -lSPIRV-Tools -lSPIRV-Tools-link")
@@ -12,7 +12,7 @@
  
  # Build pkg-config file
  # Use a first-class target so it's regenerated when relevant files are updated.
-@@ -399,6 +402,7 @@ add_custom_command(
+@@ -388,6 +391,7 @@ add_custom_command(
                        -DSPIRV_LIBRARIES=${SPIRV_LIBRARIES}
                        -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/write_pkg_config.cmake
          DEPENDS "CHANGES" "${CMAKE_CURRENT_SOURCE_DIR}/cmake/SPIRV-Tools.pc.in" "${CMAKE_CURRENT_SOURCE_DIR}/cmake/write_pkg_config.cmake")
@@ -20,7 +20,7 @@
  add_custom_command(
          OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/SPIRV-Tools-shared.pc
          COMMAND ${CMAKE_COMMAND}
-@@ -411,16 +415,29 @@ add_custom_command(
+@@ -400,16 +404,29 @@ add_custom_command(
                        -DSPIRV_SHARED_LIBRARIES=${SPIRV_SHARED_LIBRARIES}
                        -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/write_pkg_config.cmake
          DEPENDS "CHANGES" "${CMAKE_CURRENT_SOURCE_DIR}/cmake/SPIRV-Tools-shared.pc.in" "${CMAKE_CURRENT_SOURCE_DIR}/cmake/write_pkg_config.cmake")
@@ -53,30 +53,35 @@
  endif()
 --- a/source/CMakeLists.txt
 +++ b/source/CMakeLists.txt
-@@ -381,13 +381,15 @@ endfunction()
+@@ -338,16 +338,18 @@ endfunction()
  
  # Always build ${SPIRV_TOOLS}-shared. This is expected distro packages, and
  # unlike the other SPIRV_TOOLS target, defaults to hidden symbol visibility.
 -add_library(${SPIRV_TOOLS}-shared SHARED ${SPIRV_SOURCES})
--spirv_tools_default_target_options(${SPIRV_TOOLS}-shared)
--set_target_properties(${SPIRV_TOOLS}-shared PROPERTIES CXX_VISIBILITY_PRESET hidden)
--target_compile_definitions(${SPIRV_TOOLS}-shared
--  PRIVATE SPIRV_TOOLS_IMPLEMENTATION
--  PUBLIC SPIRV_TOOLS_SHAREDLIB
--)
+-if (SPIRV_TOOLS_USE_MIMALLOC)
+-  target_link_libraries(${SPIRV_TOOLS}-shared PRIVATE mimalloc-static)
 +if(BUILD_SHARED_LIBS)
 +  add_library(${SPIRV_TOOLS}-shared SHARED ${SPIRV_SOURCES})
++  if (SPIRV_TOOLS_USE_MIMALLOC)
++    target_link_libraries(${SPIRV_TOOLS}-shared PRIVATE mimalloc-static)
++  endif()
 +  spirv_tools_default_target_options(${SPIRV_TOOLS}-shared)
 +  set_target_properties(${SPIRV_TOOLS}-shared PROPERTIES CXX_VISIBILITY_PRESET hidden)
 +  target_compile_definitions(${SPIRV_TOOLS}-shared
 +    PRIVATE SPIRV_TOOLS_IMPLEMENTATION
 +    PUBLIC SPIRV_TOOLS_SHAREDLIB
 +  )
-+endif()
+ endif()
+-spirv_tools_default_target_options(${SPIRV_TOOLS}-shared)
+-set_target_properties(${SPIRV_TOOLS}-shared PROPERTIES CXX_VISIBILITY_PRESET hidden)
+-target_compile_definitions(${SPIRV_TOOLS}-shared
+-  PRIVATE SPIRV_TOOLS_IMPLEMENTATION
+-  PUBLIC SPIRV_TOOLS_SHAREDLIB
+-)
  
  if(SPIRV_TOOLS_BUILD_STATIC)
    add_library(${SPIRV_TOOLS}-static STATIC ${SPIRV_SOURCES})
-@@ -399,11 +401,11 @@ if(SPIRV_TOOLS_BUILD_STATIC)
+@@ -359,11 +361,11 @@ if(SPIRV_TOOLS_BUILD_STATIC)
    # or "${SPIRV_TOOLS}-shared" depending on the value of BUILD_SHARED_LIBS.
    if(BUILD_SHARED_LIBS)
      add_library(${SPIRV_TOOLS} ALIAS ${SPIRV_TOOLS}-shared)
@@ -89,4 +94,4 @@
 -  set(SPIRV_TOOLS_TARGETS ${SPIRV_TOOLS}-static ${SPIRV_TOOLS}-shared)
  else()
    add_library(${SPIRV_TOOLS} ${SPIRV_TOOLS_LIBRARY_TYPE} ${SPIRV_SOURCES})
-   spirv_tools_default_target_options(${SPIRV_TOOLS})
+   if (SPIRV_TOOLS_USE_MIMALLOC)
