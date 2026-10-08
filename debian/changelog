@@ -1,3 +1,15 @@
+spirv-tools (2026.1-1deepin1) unstable; urgency=medium
+
+  * Restore -DSPIRV_WERROR=OFF in debian/rules, lost in the dcbot bump
+    to 2026.1-1.
+  * Upstream CMake defaults to -Werror (SPIRV_WERROR=ON); GCC 12 at -O3
+    raises a known -Warray-bounds false positive on the initializer-list
+    assignment in Function::RegisterLoopMerge
+    (source/val/function.cpp:91), breaking the build on x86_64, aarch64,
+    loong64 and riscv64.
+
+ -- lichenggang <lichenggang@uniontech.com>  Thu, 08 Oct 2026 19:13:12 +0800
+
 spirv-tools (2026.1-1) unstable; urgency=medium
 
   * New upstream version.
